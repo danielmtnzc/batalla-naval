@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hundir la flota</title>
+  <meta name="description" content="El clásico juego de barcos: coloca tu flota y hunde la del ordenador. Tocado y hundido.">
+  <meta name="theme-color" content="#0a1a26">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a1a26'/%3E%3Cpath d='M5 19h22l-3 5H8z' fill='%23d9b45a'/%3E%3Crect x='14' y='8' width='2' height='11' fill='%23e6edf1'/%3E%3Cpath d='M16 9l7 7h-7z' fill='%23e6edf1'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body data-fase="desplegando">
+  <header class="cabecera">
+    <div class="marca">
+      <h1>Hundir la flota</h1>
+      <p class="lema">Tocado y hundido</p>
+    </div>
+    <div class="ajustes">
+      <label class="campo">
+        <span>Capitán</span>
+        <input id="nick" type="text" maxlength="16" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="campo">
+        <span>Rival</span>
+        <select id="dificultad">
+          <option value="facil">Fácil</option>
+          <option value="normal">Normal</option>
+          <option value="dificil">Difícil</option>
+        </select>
+      </label>
+      <button id="nueva" class="boton boton-fantasma" type="button">Nueva partida</button>
+    </div>
+  </header>
+
+  <main class="principal">
+    <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
+
+    <section id="panel-despliegue" class="panel-despliegue" aria-label="Colocación de la flota">
+      <p class="ayuda">Elige un barco y pulsa en tu tablero para colocarlo. Pulsa un barco ya colocado para moverlo. Los barcos no pueden tocarse.</p>
+      <div class="acciones">
+        <button id="girar" class="boton" type="button">Girar <kbd>R</kbd> · <span id="orientacion">horizontal</span></button>
+        <button id="aleatorio" class="boton" type="button">Colocar al azar</button>
+        <button id="limpiar" class="boton" type="button">Quitar todos</button>
+        <button id="batalla" class="boton boton-principal" type="button" disabled>¡A la batalla!</button>
+      </div>
+    </section>
+
+    <section class="tableros">
+      <div class="zona" id="zona-propia">
+        <div class="zona-cab">
+          <h2>Tu flota</h2>
+          <span class="turno-chapa">Dispara el enemigo</span>
+        </div>
+        <div class="tablero" id="tablero-propio" aria-label="Tu tablero"></div>
+        <ul class="flota" id="flota-propia"></ul>
+      </div>
+
+      <div class="zona" id="zona-rival">
+        <div class="zona-cab">
+          <h2>Aguas enemigas</h2>
+          <span class="turno-chapa">Tu turno</span>
+        </div>
+        <div class="tablero" id="tablero-rival" aria-label="Tablero enemigo"></div>
+        <ul class="flota" id="flota-rival"></ul>
+      </div>
+    </section>
+
+    <section class="pie-juego">
+      <dl class="marcador" id="marcador">
+        <div><dt>Disparos</dt><dd id="m-disparos">0</dd></div>
+        <div><dt>Aciertos</dt><dd id="m-aciertos">0</dd></div>
+        <div><dt>Precisión</dt><dd id="m-precision">–</dd></div>
+        <div><dt>Enemigos a flote</dt><dd id="m-flote">5</dd></div>
+      </dl>
+      <div class="bitacora">
+        <h2>Bitácora</h2>
+        <ol id="bitacora"></ol>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="fin" class="fin">
+    <p class="fin-etiqueta" id="fin-etiqueta"></p>
+    <h2 id="fin-titulo"></h2>
+    <p id="fin-texto"></p>
+    <div class="acciones">
+      <button id="ver" class="boton" type="button">Ver tableros</button>
+      <button id="otra" class="boton boton-principal" type="button">Jugar otra vez</button>
+    </div>
+  </dialog>
+
+  <footer class="creditos">
+    Reconstruido a partir de mi práctica de la universidad (2022) · <a href="https://github.com/danielmtnzc/hundir-la-flota">Código en GitHub</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "hundir-la-flota",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hundir la flota (tocado y hundido) en el navegador",
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

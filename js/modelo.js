@@ -1,4 +1,4 @@
-// Modelo del juego Hundir la flota.
+// Modelo del juego Batalla naval.
 // Basado en el modelo original de la práctica de la universidad (diciembre de 2022),
 // adaptado para funcionar entero en el navegador (sin servidor ni base de datos).
 

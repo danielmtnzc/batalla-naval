@@ -1,8 +1,8 @@
-# Hundir la flota
+# Batalla naval
 
 El clásico juego de barcos (tocado y hundido) para jugar en el navegador contra el ordenador.
 
-**Jugar:** https://danielmtnzc.github.io/hundir-la-flota/
+**Jugar:** https://danielmtnzc.github.io/batalla-naval/
 
 ## Cómo se juega
 

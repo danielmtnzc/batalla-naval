@@ -106,7 +106,6 @@ test("salaNueva y entradaHistorial producen datos aptos para Firebase y coherent
   const hundido = entradaHistorial(p, {
     estado: "hundido",
     barco: { nombre: "destructor", tam: 2, posiciones: [[3, 4], [4, 4]], extra: 1 },
-    alrededor: [[2, 3]],
   });
   assert.deepEqual(hundido.barco, { nombre: "destructor", tam: 2, posiciones: [[3, 4], [4, 4]] });
   assert.ok(!JSON.stringify(hundido).includes("undefined"));

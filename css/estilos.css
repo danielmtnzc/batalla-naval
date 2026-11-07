@@ -170,6 +170,9 @@ body[data-fase="desplegando"] .panel-despliegue { display: block; }
 .ayuda { margin: 0 0 10px; color: var(--tenue); font-size: 13px; }
 
 .acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+.orientacion { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.orientacion-etiqueta { color: var(--tenue); font-size: 14px; }
+.boton-ori[aria-pressed="true"] { border-color: var(--laton); background: rgba(217, 180, 90, 0.18); color: var(--laton); }
 
 .tableros {
   display: grid;

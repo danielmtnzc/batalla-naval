@@ -197,7 +197,6 @@ function crearRed(servidor, { salas, flotas, clientes, marcarSucia, rnd, nuevoUi
       if (!["agua", "tocado", "hundido"].includes(res.estado)) throw new Error("Estado inválido.");
       const entrada = { de: p.de, x: p.x, y: p.y, estado: res.estado };
       if (res.barco) entrada.barco = copia(res.barco);
-      if (res.alrededor) entrada.alrededor = copia(res.alrededor);
       sala.historial.push(entrada);
       sala.n = sala.historial.length;
       sala.pendiente = null;

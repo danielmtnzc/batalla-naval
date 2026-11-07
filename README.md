@@ -15,7 +15,7 @@ Reglas:
 
 - Tablero de 10 × 10.
 - Flota: portaaviones (5), acorazado (4), crucero (3), submarino (3) y destructor (2).
-- Los barcos no pueden tocarse, ni siquiera en diagonal. Cuando hundes uno, el agua de alrededor se marca sola.
+- Los barcos pueden ir pegados, pero no solapados. Al hundir uno no se marca el agua de alrededor.
 
 El ordenador tiene tres niveles:
 

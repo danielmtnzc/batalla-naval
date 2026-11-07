@@ -189,7 +189,6 @@ export class Usuario {
 // ---------------------------------------------------------------- Disparo (dos mitades)
 
 // Lado defensor. No comprueba turno ni repeticiones: eso es cosa de quien llama.
-// `alrededor` son todas las casillas vecinas del barco hundido; el atacante descarta las ya marcadas.
 export function resolverEn(atacado, x, y) {
   const tablero = atacado.tableroPropio;
   const contenido = tablero.casillas[x][y].contiene;
@@ -202,7 +201,6 @@ export function resolverEn(atacado, x, y) {
     if (estado === "hundido") {
       const posiciones = contenido.obtenerPosiciones();
       res.barco = { nombre: contenido.nombre, tam: contenido.tam, posiciones };
-      res.alrededor = tablero.alrededorDe(posiciones);
     }
   }
   return res;
@@ -210,7 +208,6 @@ export function resolverEn(atacado, x, y) {
 
 // Lado atacante.
 export function aplicarResultado(atacante, x, y, res) {
-  const tablero = atacante.tableroRival;
   atacante.disparos++;
   if (res.estado === "agua") {
     atacante.marcarEstado("agua", x, y);
@@ -219,10 +216,6 @@ export function aplicarResultado(atacante, x, y, res) {
   atacante.aciertos++;
   if (res.estado === "hundido") {
     for (const [px, py] of res.barco.posiciones) atacante.marcarEstado("hundido", px, py);
-    // Los barcos no pueden tocarse: el agua alrededor de un hundido queda descubierta.
-    for (const [ax, ay] of res.alrededor) {
-      if (!tablero.obtenerMarca(ax, ay)) atacante.marcarEstado("agua", ax, ay);
-    }
   } else {
     atacante.marcarEstado("tocado", x, y);
   }
@@ -304,7 +297,7 @@ export class Partida {
   }
 
   // Lado defensor: aplica el disparo al tablero propio del atacado.
-  // Devuelve { estado, barco?, alrededor? } con lo que necesita el atacante para marcar su tablero.
+  // Devuelve { estado, barco? } con lo que necesita el atacante para marcar su tablero.
   resolverEn(atacado, x, y) {
     return resolverEn(atacado, x, y);
   }
@@ -314,7 +307,7 @@ export class Partida {
     aplicarResultado(atacante, x, y, res);
   }
 
-  // Devuelve { estado, x, y, atacante, barco?, alrededor? } o { error }.
+  // Devuelve { estado, x, y, atacante, barco? } o { error }.
   disparar(nick, x, y) {
     if (!this.esJugando()) return { error: "La partida no está en juego." };
     const atacante = this.obtenerJugador(nick);
@@ -375,32 +368,6 @@ export class Tablero {
     return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < this.size && y < this.size;
   }
 
-  vecinos(x, y) {
-    const lista = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if ((dx || dy) && this.dentro(x + dx, y + dy)) lista.push([x + dx, y + dy]);
-      }
-    }
-    return lista;
-  }
-
-  alrededorDe(posiciones) {
-    const propias = new Set(posiciones.map(([x, y]) => clave(x, y)));
-    const vistos = new Set();
-    const lista = [];
-    for (const [x, y] of posiciones) {
-      for (const [vx, vy] of this.vecinos(x, y)) {
-        const k = clave(vx, vy);
-        if (!propias.has(k) && !vistos.has(k)) {
-          vistos.add(k);
-          lista.push([vx, vy]);
-        }
-      }
-    }
-    return lista;
-  }
-
   libre(x, y, ignorar) {
     const c = this.casillas[x][y].contiene;
     return c.esAgua() || c === ignorar;
@@ -415,8 +382,7 @@ export class Tablero {
     return posiciones.every(
       ([px, py]) =>
         this.dentro(px, py) &&
-        this.libre(px, py, barco) &&
-        this.vecinos(px, py).every(([vx, vy]) => this.libre(vx, vy, barco))
+        this.libre(px, py, barco)
     );
   }
 

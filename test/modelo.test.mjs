@@ -27,13 +27,13 @@ test("la partida pasa a desplegando con dos jugadores y no admite un tercero", (
   assert.equal(juego.jugadorSeUneAPartida("ana", partida.codigo).codigo, -1);
 });
 
-test("no se puede colocar fuera del tablero, encima de otro barco ni pegado", () => {
+test("no se puede colocar fuera del tablero ni encima de otro barco, pero sí pegado", () => {
   const { pepe } = preparar();
   assert.equal(pepe.colocarBarco("portaaviones", 6, 0, new Horizontal()), false);
   assert.equal(pepe.colocarBarco("portaaviones", 0, 0, new Horizontal()), true);
   assert.equal(pepe.colocarBarco("destructor", 2, 0, new Vertical()), false); // encima
-  assert.equal(pepe.colocarBarco("destructor", 0, 1, new Horizontal()), false); // pegado
-  assert.equal(pepe.colocarBarco("destructor", 0, 2, new Horizontal()), true);
+  assert.equal(pepe.colocarBarco("destructor", 0, 1, new Horizontal()), true); // pegado
+  assert.equal(pepe.colocarBarco("destructor", 0, 2, new Horizontal()), true); // y se mueve
   assert.equal(pepe.colocarBarco("acorazado", 9, 6, new Vertical()), true);
   assert.equal(pepe.colocarBarco("crucero", 9, 8, new Vertical()), false);
 });
@@ -55,7 +55,7 @@ test("despliegue aleatorio y paso a jugando", () => {
   assert.equal(partida.turno, pepe);
 });
 
-test("agua pasa el turno, tocado repite, hundido descubre el agua de alrededor", () => {
+test("agua pasa el turno, tocado repite, hundido no descubre el agua de alrededor", () => {
   const { partida, pepe, luis } = preparar();
   pepe.desplegarAleatorio(semilla(3));
   luis.colocarBarco("destructor", 0, 0, new Vertical());
@@ -70,8 +70,9 @@ test("agua pasa el turno, tocado repite, hundido descubre el agua de alrededor",
   assert.equal(pepe.disparar(0, 0).error, "Ya has disparado ahí.");
   const r = pepe.disparar(0, 1);
   assert.equal(r.estado, "hundido");
-  assert.equal(pepe.tableroRival.obtenerMarca(1, 1), "agua");
-  assert.equal(pepe.tableroRival.obtenerMarca(0, 2), "agua");
+  assert.equal(r.alrededor, undefined);
+  assert.equal(pepe.tableroRival.obtenerMarca(1, 1), null);
+  assert.equal(pepe.tableroRival.obtenerMarca(0, 2), null);
   assert.equal(pepe.disparar(5, 5).estado, "agua");
   assert.equal(partida.turno, luis);
   assert.equal(pepe.disparar(6, 6).error, "No es tu turno.");
@@ -139,7 +140,7 @@ test("la IA difícil necesita de media menos disparos que la fácil", () => {
   assert.ok(d < n && n < f);
 });
 
-test("colocación manual: mover, girar en el sitio y respetar límites y diagonales", () => {
+test("colocación manual: mover, girar en el sitio y respetar límites; se admiten barcos pegados", () => {
   const { pepe } = preparar();
   assert.equal(pepe.colocarBarco("destructor", 0, 0, new Horizontal()), true);
   // mover solapando su propia posición anterior
@@ -149,8 +150,9 @@ test("colocación manual: mover, girar en el sitio y respetar límites y diagona
   assert.equal(pepe.colocarBarco("destructor", 1, 0, new Vertical()), true);
   assert.deepEqual(pepe.flota.destructor.obtenerPosiciones(), [[1, 0], [1, 1]]);
   assert.equal(pepe.tableroPropio.casillas[2][0].contiene.esAgua(), true);
-  // en diagonal no se puede tocar; con una casilla libre de por medio, sí
-  assert.equal(pepe.colocarBarco("crucero", 2, 2, new Horizontal()), false);
+  // pegado (también en diagonal) se puede; solapado no
+  assert.equal(pepe.colocarBarco("crucero", 2, 2, new Horizontal()), true);
+  assert.equal(pepe.colocarBarco("crucero", 1, 1, new Horizontal()), false); // pisa el destructor en (1,1)
   assert.equal(pepe.colocarBarco("crucero", 3, 3, new Horizontal()), true);
   // fuera del tablero: no se coloca y el barco previo no se pierde
   assert.equal(pepe.colocarBarco("crucero", 8, 3, new Horizontal()), false);

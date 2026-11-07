@@ -70,9 +70,14 @@
     </section>
 
     <section id="panel-despliegue" class="panel-despliegue" aria-label="Colocación de la flota">
-      <p class="ayuda">Elige un barco y pulsa en tu tablero para colocarlo. Pulsa un barco ya colocado para moverlo. Los barcos no pueden tocarse.</p>
+      <p class="ayuda">Pulsa un barco de la lista y después la casilla de tu tablero donde quieres que empiece. Pulsa un barco ya colocado para moverlo. Los barcos pueden ir pegados, pero no solapados.</p>
+      <div class="orientacion" role="group" aria-label="Orientación">
+        <span class="orientacion-etiqueta">Orientación:</span>
+        <button id="ori-horizontal" class="boton boton-ori" type="button" aria-pressed="true">Horizontal</button>
+        <button id="ori-vertical" class="boton boton-ori" type="button" aria-pressed="false">Vertical</button>
+        <kbd title="Atajo de teclado para cambiar la orientación">R</kbd>
+      </div>
       <div class="acciones">
-        <button id="girar" class="boton" type="button">Girar <kbd>R</kbd> · <span id="orientacion">horizontal</span></button>
         <button id="aleatorio" class="boton" type="button">Colocar al azar</button>
         <button id="limpiar" class="boton" type="button">Quitar todos</button>
         <button id="batalla" class="boton boton-principal" type="button" disabled>¡A la batalla!</button>

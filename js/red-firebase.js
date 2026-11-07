@@ -23,6 +23,11 @@
 // No se importa en los tests (usa URLs de CDN): la parte pura está en js/sala-remota.js.
 
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+  ReCaptchaEnterpriseProvider,
+} from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app-check.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
 import {
   getDatabase,
@@ -34,7 +39,7 @@ import {
   onDisconnect,
   runTransaction,
 } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig, appCheckConfig } from "./firebase-config.js";
 import { generarCodigo, normalizarCodigo } from "./protocolo.js";
 import {
   normalizarSala,
@@ -52,8 +57,24 @@ function app(config) {
   return getApps()[0] ?? initializeApp(config);
 }
 
-export function crearRedFirebase({ config = firebaseConfig, rnd = Math.random } = {}) {
+const conAppCheck = new WeakSet();
+
+// Activa App Check una sola vez por app, antes de crear Auth y Database, para que todas sus
+// peticiones lleven token. Sin site key no hace nada. En localhost usa el token de depuración
+// (la primera vez lo imprime en la consola del navegador; hay que darlo de alta en
+// Firebase → App Check → Apps → Administrar tokens de depuración).
+function activarAppCheck(fbApp, { siteKey, enterprise } = {}) {
+  if (!siteKey || conAppCheck.has(fbApp)) return;
+  const host = globalThis.location?.hostname;
+  if (host === "localhost" || host === "127.0.0.1") self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  const provider = enterprise ? new ReCaptchaEnterpriseProvider(siteKey) : new ReCaptchaV3Provider(siteKey);
+  initializeAppCheck(fbApp, { provider, isTokenAutoRefreshEnabled: true });
+  conAppCheck.add(fbApp);
+}
+
+export function crearRedFirebase({ config = firebaseConfig, appCheck = appCheckConfig, rnd = Math.random } = {}) {
   const fbApp = app(config);
+  activarAppCheck(fbApp, appCheck);
   const auth = getAuth(fbApp);
   const db = getDatabase(fbApp);
 

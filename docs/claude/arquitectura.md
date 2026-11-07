@@ -7,4 +7,6 @@ Dependencias en una sola dirección: `app` → `online`/`ia`/`modelo`; `online` 
 - `js/protocolo.js`, `js/online.js`, `js/sala-remota.js`, `js/red-firebase.js` — modo online, ver [online.md](online.md).
 - `js/app.js` — interfaz: DOM por id, estado de la partida en la variable de módulo `e` (`e.modo` = `"ia"` | `"online"`), pinta tableros y orquesta turnos. Carga `red-firebase.js` con import dinámico solo al pulsar Crear sala/Unirse, para que el modo IA no dependa del SDK. Persiste nick, dificultad y modo en `localStorage` (siempre en try/catch).
 
-Reglas del juego: tablero 10×10, flota estándar de 5 barcos (`FLOTA_ESTANDAR`), los barcos no pueden tocarse ni en diagonal, al hundir un barco el agua alrededor se marca sola, quien acierta repite turno, no se puede disparar dos veces a la misma casilla.
+Colocación (fase `desplegando`): se pulsa un barco de la lista y luego una casilla del tablero propio, que es el inicio del barco con la orientación elegida (fila "Orientación": Horizontal/Vertical, atajo `R`). Sin barco seleccionado, pulsar un barco colocado lo levanta para moverlo. Debajo van "Colocar al azar" y "Quitar todos".
+
+Reglas del juego: tablero 10×10, flota estándar de 5 barcos (`FLOTA_ESTANDAR`), los barcos pueden ir pegados (también en diagonal) pero no solapados ni fuera del tablero, al hundir un barco no se marca agua alrededor, quien acierta repite turno, no se puede disparar dos veces a la misma casilla.

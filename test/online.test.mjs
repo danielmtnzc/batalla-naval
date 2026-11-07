@@ -106,7 +106,7 @@ test("serializar y deserializar la flota conserva posiciones y orientaciones", (
   assert.deepEqual(serializarFlota(copia), datos);
 });
 
-test("deserializarFlota rechaza flotas incompletas, solapadas o con barcos pegados", () => {
+test("deserializarFlota rechaza flotas incompletas, solapadas o fuera del tablero", () => {
   const base = crearUsuarioLocal("a");
   base.desplegarAleatorio(semilla(6));
   const datos = serializarFlota(base);
@@ -116,10 +116,10 @@ test("deserializarFlota rechaza flotas incompletas, solapadas o con barcos pegad
   delete incompleta.destructor;
   assert.equal(deserializarFlota(incompleta, u()), false);
 
-  const pegados = structuredClone(datos);
-  pegados.portaaviones = { x: 0, y: 0, ori: "horizontal" };
-  pegados.acorazado = { x: 0, y: 1, ori: "horizontal" };
-  assert.equal(deserializarFlota(pegados, u()), false);
+  const solapados = structuredClone(datos);
+  solapados.portaaviones = { x: 0, y: 0, ori: "horizontal" };
+  solapados.acorazado = { x: 2, y: 0, ori: "vertical" };
+  assert.equal(deserializarFlota(solapados, u()), false);
 
   const fuera = structuredClone(datos);
   fuera.portaaviones = { x: 8, y: 0, ori: "horizontal" };
@@ -177,7 +177,7 @@ test("resolverDisparo: agua pasa el turno, tocado lo mantiene y hundir el últim
 
 // ---------------------------------------------------------------- Partida completa
 
-test("partida completa: turnos, repetir tras acertar, fuera de turno, agua alrededor, ganador y verificación", async () => {
+test("partida completa: turnos, repetir tras acertar, fuera de turno, ganador y verificación", async () => {
   const { servidor, a, b, codigo } = await salaListaParaJugar(1);
 
   let sala = servidor.sala(codigo);
@@ -222,7 +222,7 @@ test("partida completa: turnos, repetir tras acertar, fuera de turno, agua alred
       repeticiones++;
     }
 
-    // El atacante ve la casilla marcada y, si hunde, el agua de alrededor ya descubierta.
+    // El atacante ve la casilla marcada y, si hunde, las casillas del barco; el agua de alrededor no se marca.
     const marca = j.usuario.tableroRival.obtenerMarca(x, y);
     assert.equal(marca, entrada.estado);
     if (entrada.estado === "hundido") {
@@ -230,14 +230,10 @@ test("partida completa: turnos, repetir tras acertar, fuera de turno, agua alred
       for (const [px, py] of entrada.barco.posiciones) {
         assert.equal(j.usuario.tableroRival.obtenerMarca(px, py), "hundido");
       }
-      assert.ok(entrada.alrededor.length >= 6);
-      for (const [ax, ay] of entrada.alrededor) {
-        assert.ok(j.usuario.tableroRival.obtenerMarca(ax, ay), `casilla ${ax},${ay} sin descubrir`);
-        assert.notEqual(j.usuario.tableroRival.obtenerMarca(ax, ay), "tocado");
-      }
-      // Quien repite turno no puede volver a disparar en una casilla descubierta (lo impide el cliente).
-      const [ax, ay] = entrada.alrededor[0];
-      if (sala.fase !== "final") assert.equal(validarDisparo(j.estado, ax, ay), "Ya has disparado ahí.");
+      assert.equal(entrada.alrededor, undefined);
+      // Quien repite turno no puede volver a disparar en una casilla del barco hundido.
+      const [bx, by] = entrada.barco.posiciones[0];
+      if (sala.fase !== "final") assert.equal(validarDisparo(j.estado, bx, by), "Ya has disparado ahí.");
     }
     j.ia.registrar(entrada);
     assert.ok(disparos <= 200);
@@ -305,16 +301,13 @@ test("verificarHistorial detecta respuestas falsas del defensor", async () => {
   assert.equal(v.ok, false);
   assert.equal(v.indice, k);
 
-  // 3) B declara hundido un barco con otras posiciones o con otra agua alrededor.
+  // 3) B declara hundido un barco con otras posiciones.
   const mentira3 = structuredClone(sala.historial);
   const h = mentira3.findIndex((e) => e.de === a.uid && e.estado === "hundido");
   mentira3[h].barco.posiciones[0] = [9, 9];
   v = verificarHistorial(mentira3, flotaB, b.uid);
   assert.equal(v.ok, false);
   assert.equal(v.indice, h);
-  const mentira4 = structuredClone(sala.historial);
-  mentira4[h].alrededor.pop();
-  assert.equal(verificarHistorial(mentira4, flotaB, b.uid).ok, false);
 
   // 4) Reveló una flota distinta de la usada: no cuadra con las respuestas.
   assert.equal(verificarHistorial(sala.historial, flotaA, b.uid).ok, false);

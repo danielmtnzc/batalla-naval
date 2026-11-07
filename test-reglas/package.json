@@ -1,0 +1,14 @@
+{
+  "name": "batalla-naval-test-reglas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de database.rules.json con el emulador de Firebase Realtime Database",
+  "scripts": {
+    "test": "firebase emulators:exec --only database --project demo-batalla-naval \"node --test reglas.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.0.0"
+  }
+}

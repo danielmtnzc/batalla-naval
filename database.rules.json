@@ -31,7 +31,7 @@
           ".validate": "newData.val() === 'flota hundida' || newData.val() === 'abandono'"
         },
         "n": {
-          ".write": "(data.parent().child('fase').val() === 'jugando' && data.parent().child('pendiente').exists() && data.parent().child('pendiente/de').val() !== auth.uid && (auth.uid === data.parent().child('creador').val() || auth.uid === data.parent().child('invitado').val()) && !newData.parent().child('pendiente').exists() && newData.parent().child('n').val() === data.parent().child('n').val() + 1)",
+          ".write": "(data.parent().child('fase').val() === 'jugando' && data.parent().child('pendiente').exists() && data.parent().child('pendiente/de').val() !== auth.uid && (auth.uid === data.parent().child('creador').val() || auth.uid === data.parent().child('invitado').val()) && !newData.parent().child('pendiente').exists() && newData.parent().child('n').val() === data.parent().child('n').val() + 1 && newData.parent().child('historial').child('' + data.val()).exists())",
           ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 200"
         },
         "jugadores": {
@@ -72,8 +72,8 @@
         },
         "historial": {
           "$i": {
-            ".write": "!data.exists() && $i.matches(/^[0-9]{1,3}$/) && (data.parent().parent().child('fase').val() === 'jugando' && data.parent().parent().child('pendiente').exists() && data.parent().parent().child('pendiente/de').val() !== auth.uid && (auth.uid === data.parent().parent().child('creador').val() || auth.uid === data.parent().parent().child('invitado').val()) && !newData.parent().parent().child('pendiente').exists() && newData.parent().parent().child('n').val() === data.parent().parent().child('n').val() + 1) && newData.child('de').val() === data.parent().parent().child('pendiente/de').val() && newData.child('x').val() === data.parent().parent().child('pendiente/x').val() && newData.child('y').val() === data.parent().parent().child('pendiente/y').val()",
-            ".validate": "newData.hasChildren(['de', 'x', 'y', 'estado']) && ((newData.child('estado').val() === 'hundido' && newData.hasChildren(['barco', 'alrededor'])) || (newData.child('estado').val() !== 'hundido' && !newData.hasChild('barco') && !newData.hasChild('alrededor')))",
+            ".write": "!data.exists() && $i.matches(/^[0-9]{1,3}$/) && $i === '' + data.parent().parent().child('n').val() && (data.parent().parent().child('fase').val() === 'jugando' && data.parent().parent().child('pendiente').exists() && data.parent().parent().child('pendiente/de').val() !== auth.uid && (auth.uid === data.parent().parent().child('creador').val() || auth.uid === data.parent().parent().child('invitado').val()) && !newData.parent().parent().child('pendiente').exists() && newData.parent().parent().child('n').val() === data.parent().parent().child('n').val() + 1) && newData.child('de').val() === data.parent().parent().child('pendiente/de').val() && newData.child('x').val() === data.parent().parent().child('pendiente/x').val() && newData.child('y').val() === data.parent().parent().child('pendiente/y').val()",
+            ".validate": "newData.hasChildren(['de', 'x', 'y', 'estado']) && ((newData.child('estado').val() === 'hundido' && newData.hasChild('barco')) || (newData.child('estado').val() !== 'hundido' && !newData.hasChild('barco')))",
             "de": {
               ".validate": "newData.isString()"
             },
@@ -110,20 +110,6 @@
               },
               "$otro": {
                 ".validate": false
-              }
-            },
-            "alrededor": {
-              "$k": {
-                "0": {
-                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 9"
-                },
-                "1": {
-                  ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() >= 0 && newData.val() <= 9"
-                },
-                ".validate": "$k.matches(/^[0-9]{1,2}$/) && newData.hasChildren(['0', '1'])",
-                "$otro": {
-                  ".validate": false
-                }
               }
             },
             "$otro": {

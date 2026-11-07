@@ -60,7 +60,7 @@ export function serializarFlota(usuario) {
 }
 
 // Coloca en `usuario` la flota serializada. Devuelve true si es válida (completa, dentro del
-// tablero y sin que los barcos se toquen); si no, deja el tablero vacío y devuelve false.
+// tablero y sin solaparse); si no, deja el tablero vacío y devuelve false.
 export function deserializarFlota(datos, usuario) {
   const vaciar = () => {
     for (const barco of Object.values(usuario.flota)) usuario.tableroPropio.quitarBarco(barco);
@@ -123,7 +123,6 @@ function resultadoYaAplicado(usuario, x, y) {
   return {
     estado: "hundido",
     barco: { nombre: contenido.nombre, tam: contenido.tam, posiciones },
-    alrededor: tablero.alrededorDe(posiciones),
   };
 }
 
@@ -192,7 +191,7 @@ const mismasCasillas = (a = [], b = []) => {
 };
 
 // Comprueba que las respuestas del defensor (uidDefensor) cuadran con la flota que ha revelado:
-// repite sus disparos recibidos sobre esa flota y compara estado, barco hundido y agua alrededor.
+// repite sus disparos recibidos sobre esa flota y compara estado y barco hundido.
 // También comprueba la regla de turnos (agua cambia de atacante, acierto repite) y que no haya
 // disparos repetidos. Devuelve { ok: true } o { ok: false, indice, motivo }.
 export function verificarHistorial(historial, flotaRevelada, uidDefensor) {
@@ -219,9 +218,6 @@ export function verificarHistorial(historial, flotaRevelada, uidDefensor) {
     if (real.estado === "hundido") {
       if (!e.barco || e.barco.nombre !== real.barco.nombre || !mismasCasillas(e.barco.posiciones, real.barco.posiciones)) {
         return { ok: false, indice: i, motivo: "Barco hundido incorrecto." };
-      }
-      if (!mismasCasillas(e.alrededor, real.alrededor)) {
-        return { ok: false, indice: i, motivo: "Agua alrededor incorrecta." };
       }
     }
   }

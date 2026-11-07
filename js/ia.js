@@ -13,7 +13,7 @@ export class Almirante {
     this.tam = tam;
     this.dificultad = dificultad;
     this.rnd = rnd;
-    this.descartadas = new Set(); // casillas ya disparadas o que no pueden tener barco
+    this.descartadas = new Set(); // casillas ya disparadas
     this.impactos = []; // tocados de barcos aún sin hundir
     this.restantes = FLOTA_ESTANDAR.map((b) => b.tam);
   }
@@ -110,7 +110,6 @@ export class Almirante {
       const hundidas = new Set(resultado.barco.posiciones.map(([x, y]) => clave(x, y)));
       this.impactos = this.impactos.filter(([x, y]) => !hundidas.has(clave(x, y)));
       for (const k of hundidas) this.descartadas.add(k);
-      for (const [x, y] of resultado.alrededor) this.descartadas.add(clave(x, y));
       const i = this.restantes.indexOf(resultado.barco.tam);
       if (i >= 0) this.restantes.splice(i, 1);
     }

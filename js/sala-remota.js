@@ -37,7 +37,6 @@ function normalizarEntrada(e) {
       posiciones: aArray(e.barco.posiciones).map(aCelda),
     };
   }
-  if (e.alrededor || e.estado === "hundido") entrada.alrededor = aArray(e.alrededor).map(aCelda);
   return entrada;
 }
 
@@ -86,7 +85,6 @@ export function entradaHistorial(pendiente, res) {
       tam: res.barco.tam,
       posiciones: res.barco.posiciones.map(([x, y]) => [x, y]),
     };
-    entrada.alrededor = (res.alrededor ?? []).map(([x, y]) => [x, y]);
   }
   return entrada;
 }

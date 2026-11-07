@@ -1,6 +1,6 @@
 // Interfaz del juego: une el modelo con la página.
 
-import { Juego, Horizontal, TAM_TABLERO } from "./modelo.js";
+import { Juego, Horizontal, Vertical, TAM_TABLERO } from "./modelo.js";
 import { Almirante } from "./ia.js";
 import { crearUsuarioLocal, deserializarFlota, normalizarCodigo } from "./protocolo.js";
 import { crearControlador, crearRivalFantasma, almacenSala } from "./online.js";
@@ -37,8 +37,8 @@ const ui = {
   finVerif: $("#fin-verif"),
   nueva: $("#nueva"),
   salir: $("#salir"),
-  girar: $("#girar"),
-  orientacion: $("#orientacion"),
+  oriHorizontal: $("#ori-horizontal"),
+  oriVertical: $("#ori-vertical"),
   aleatorio: $("#aleatorio"),
   limpiar: $("#limpiar"),
   batalla: $("#batalla"),
@@ -469,16 +469,17 @@ function clicPropio(x, y) {
   if (!partida.esDesplegando()) return;
   const contenido = jugador.tableroPropio.casillas[x][y].contiene;
 
-  if (!contenido.esAgua()) {
-    // levantar un barco ya colocado para moverlo
+  if (!e.seleccionado) {
+    if (contenido.esAgua()) return avisar("Pulsa primero un barco de la lista.");
+    // sin barco elegido, pulsar uno colocado lo levanta para moverlo
+    e.orientacion = contenido.orientacion;
     jugador.quitarBarco(contenido.nombre);
     e.seleccionado = contenido.nombre;
-    e.orientacion = contenido.orientacion;
-    avisar(`Mueve el ${contenido.nombre}: elige su nueva posición.`);
+    avisar(`Mueve el ${contenido.nombre}: pulsa la casilla donde quieres que empiece.`);
     return render();
   }
 
-  if (!e.seleccionado) return avisar("Elige primero un barco de la lista.");
+  // con un barco elegido, la casilla pulsada es siempre su inicio
   const nombre = e.seleccionado;
   if (jugador.colocarBarco(nombre, x, y, e.orientacion)) {
     e.seleccionado = siguienteSinColocar();
@@ -486,7 +487,7 @@ function clicPropio(x, y) {
       ? `${capital(nombre)} colocado. Ahora el ${e.seleccionado}.`
       : `Flota lista. Pulsa ${botonEmpezar()} cuando quieras.`);
   } else {
-    avisar(`El ${nombre} no cabe ahí: se sale del tablero o toca otro barco.`);
+    avisar(`El ${nombre} no cabe ahí: se sale del tablero o se solapa con otro barco.`);
   }
   render();
 }
@@ -495,10 +496,14 @@ function siguienteSinColocar() {
   return Object.values(e.jugador.flota).find((b) => !b.desplegado)?.nombre || null;
 }
 
-function girar() {
+function ponerOrientacion(ori) {
   if (!e.partida.esDesplegando()) return;
-  e.orientacion = e.orientacion.girar();
+  e.orientacion = ori;
   render();
+}
+
+function girar() {
+  ponerOrientacion(e.orientacion.girar());
 }
 
 // ------------------------------------------------------------ mensajes
@@ -658,7 +663,9 @@ function render() {
   ui.zonaPropia.classList.toggle("activa", partida.esJugando() && partida.turno === maquina);
 
   // panel de colocación
-  ui.orientacion.textContent = e.orientacion.nombre;
+  const horizontal = e.orientacion.esHorizontal();
+  ui.oriHorizontal.setAttribute("aria-pressed", String(horizontal));
+  ui.oriVertical.setAttribute("aria-pressed", String(!horizontal));
   ui.batalla.disabled = !jugador.todosDesplegados()
     || (enLinea() && (!e.ctl || e.ctl.estado?.fase !== "desplegando" || e.conectando));
 
@@ -798,7 +805,8 @@ function iniciar() {
     if (e && e.hover) { e.hover = null; render(); }
   });
 
-  ui.girar.addEventListener("click", girar);
+  ui.oriHorizontal.addEventListener("click", () => ponerOrientacion(new Horizontal()));
+  ui.oriVertical.addEventListener("click", () => ponerOrientacion(new Vertical()));
   ui.aleatorio.addEventListener("click", () => {
     if (!e.partida.esDesplegando()) return;
     if (e.jugador.desplegarAleatorio()) {

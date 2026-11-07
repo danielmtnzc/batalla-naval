@@ -714,7 +714,10 @@ function renderFlotas() {
       if (!barco.desplegado) fila.classList.add("pendiente");
       if (e.seleccionado === barco.nombre) fila.classList.add("seleccionado");
       fila.addEventListener("click", () => {
-        if (barco.desplegado) jugador.quitarBarco(barco.nombre);
+        if (barco.desplegado) {
+          e.orientacion = barco.orientacion; // igual que al levantarlo desde el tablero
+          jugador.quitarBarco(barco.nombre);
+        }
         e.seleccionado = barco.nombre;
         avisar(`Coloca el ${barco.nombre} (${barco.tam} casillas).`);
         render();
@@ -798,9 +801,13 @@ function iniciar() {
   ui.girar.addEventListener("click", girar);
   ui.aleatorio.addEventListener("click", () => {
     if (!e.partida.esDesplegando()) return;
-    e.jugador.desplegarAleatorio();
-    e.seleccionado = null;
-    avisar(`Flota colocada al azar. Puedes moverla o pulsar ${botonEmpezar()}.`);
+    if (e.jugador.desplegarAleatorio()) {
+      e.seleccionado = null;
+      avisar(`Flota colocada al azar. Puedes moverla o pulsar ${botonEmpezar()}.`);
+    } else {
+      e.seleccionado = siguienteSinColocar();
+      avisar("No se ha podido colocar la flota al azar. Inténtalo otra vez.");
+    }
     render();
   });
   ui.limpiar.addEventListener("click", () => {
@@ -841,6 +848,7 @@ function iniciar() {
 
   document.addEventListener("keydown", (ev) => {
     if (ev.target.matches("input, select, textarea")) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat || !e) return; // Ctrl+R recarga, no gira
     if (ev.key === "r" || ev.key === "R") girar();
   });
 

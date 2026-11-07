@@ -145,6 +145,7 @@ export class Usuario {
       }
       if (ok) return true;
     }
+    this.quitarTodos(); // sin dejar una flota a medias
     return false;
   }
 

@@ -138,3 +138,30 @@ test("la IA difícil necesita de media menos disparos que la fácil", () => {
   console.log(`media de disparos: fácil ${f}, normal ${n}, difícil ${d}`);
   assert.ok(d < n && n < f);
 });
+
+test("colocación manual: mover, girar en el sitio y respetar límites y diagonales", () => {
+  const { pepe } = preparar();
+  assert.equal(pepe.colocarBarco("destructor", 0, 0, new Horizontal()), true);
+  // mover solapando su propia posición anterior
+  assert.equal(pepe.colocarBarco("destructor", 1, 0, new Horizontal()), true);
+  assert.deepEqual(pepe.flota.destructor.obtenerPosiciones(), [[1, 0], [2, 0]]);
+  // girar en el sitio no duplica ni pierde casillas
+  assert.equal(pepe.colocarBarco("destructor", 1, 0, new Vertical()), true);
+  assert.deepEqual(pepe.flota.destructor.obtenerPosiciones(), [[1, 0], [1, 1]]);
+  assert.equal(pepe.tableroPropio.casillas[2][0].contiene.esAgua(), true);
+  // en diagonal no se puede tocar; con una casilla libre de por medio, sí
+  assert.equal(pepe.colocarBarco("crucero", 2, 2, new Horizontal()), false);
+  assert.equal(pepe.colocarBarco("crucero", 3, 3, new Horizontal()), true);
+  // fuera del tablero: no se coloca y el barco previo no se pierde
+  assert.equal(pepe.colocarBarco("crucero", 8, 3, new Horizontal()), false);
+  assert.deepEqual(pepe.flota.crucero.obtenerPosiciones(), [[3, 3], [4, 3], [5, 3]]);
+  assert.equal(pepe.colocarBarco("crucero", 3, 8, new Vertical()), false);
+  assert.equal(pepe.colocarBarco("crucero", -1, 3, new Horizontal()), false);
+});
+
+test("desplegarAleatorio que falla no deja la flota a medias", () => {
+  const { pepe } = preparar();
+  assert.equal(pepe.desplegarAleatorio(() => 0), false);
+  assert.ok(Object.values(pepe.flota).every((b) => !b.desplegado));
+  assert.equal(pepe.tableroPropio.casillas[0][0].contiene.esAgua(), true);
+});

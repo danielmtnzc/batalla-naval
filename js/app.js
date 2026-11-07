@@ -240,7 +240,8 @@ function iniciarOnline(inicio) {
 
   const enlace = normalizarCodigo(new URLSearchParams(location.search).get("sala"));
   const guardado = almacen.leer();
-  avisar("Crea una sala y pásale el código a tu rival, o únete a la suya. Mientras tanto, puedes ir colocando tu flota.");
+  const bienvenida = "Crea una sala y pásale el código a tu rival, o únete a la suya. Mientras tanto, puedes ir colocando tu flota.";
+  avisar(bienvenida);
   render();
   renderSala();
   // Recarga a mitad de partida: se vuelve a la sala guardada (si el enlace es de otra sala, manda el enlace).
@@ -248,7 +249,8 @@ function iniciarOnline(inicio) {
     avisar("Volviendo a tu partida online…");
     conectarOnline(async (ctl) => {
       const r = await ctl.retomar(guardado);
-      if (!r.error) avisar(`Has vuelto a la sala ${guardado}.`);
+      if (r.caducada) avisar(bienvenida); // la sala ya no existe: el código se olvidó
+      else if (!r.error) avisar(`Has vuelto a la sala ${guardado}.`);
       return r;
     });
   } else if (inicio && enlace) {

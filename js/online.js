@@ -153,7 +153,12 @@ export function crearControlador({
       await retomarInterno(c);
       return { codigo: c, retomada: true };
     } catch (err) {
-      if (/no existe|no eres jugador/i.test(textoError(err))) almacen.borrar();
+      const msg = textoError(err);
+      // La sala ya no existe (o ya no soy jugador): se olvida el código sin mostrar error.
+      if (/no existe|no eres jugador/i.test(msg)) {
+        almacen.borrar();
+        return { error: msg, caducada: true };
+      }
       return fallo(err);
     }
   }

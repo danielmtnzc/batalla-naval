@@ -325,6 +325,17 @@ test("retomar: sala inexistente o ajena limpia el código guardado", async () =>
   assert.equal(intruso.almacen.leer(), null);
 });
 
+test("retomar con sala inexistente: olvida el código y no emite error", async () => {
+  const servidor = crearServidorMemoria({ rnd: semilla(27) });
+  const a = await cliente(servidor, "ana", 1, 2);
+  a.almacen.guardar("ZZZZZ");
+  const r = await a.ctl.retomar("ZZZZZ");
+  assert.equal(r.caducada, true);
+  assert.equal(a.almacen.leer(), null);
+  assert.equal(a.ctl.codigo, null);
+  assert.deepEqual(a.errores, []);
+});
+
 test("un evento duplicado o tardío no repite el golpe ni da error", async () => {
   const servidor = crearServidorMemoria({ rnd: semilla(15) });
   const a = await cliente(servidor, "ana", 1, 2);

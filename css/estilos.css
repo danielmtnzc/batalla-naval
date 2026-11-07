@@ -126,6 +126,15 @@ input:focus, select:focus { outline: 2px solid var(--laton); outline-offset: 1px
 .boton-principal:hover:not(:disabled) { background: #e6c472; border-color: #e6c472; }
 
 .boton-fantasma { background: transparent; }
+.boton[hidden] { display: none; }
+
+.barra-salir { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.barra-salir:has(> [hidden]) { display: none; }
+.boton-salir { border-color: var(--tocado); color: #ff9a80; background: transparent; }
+.boton-salir:hover:not(:disabled) { border-color: var(--tocado); background: rgba(255, 120, 90, 0.12); }
+@media (max-width: 760px) {
+  .barra-salir .boton { width: 100%; }
+}
 
 kbd {
   padding: 0 5px;

@@ -36,6 +36,7 @@ const ui = {
   etiquetaFlote: $("#etiqueta-flote"),
   finVerif: $("#fin-verif"),
   nueva: $("#nueva"),
+  salir: $("#salir"),
   girar: $("#girar"),
   orientacion: $("#orientacion"),
   aleatorio: $("#aleatorio"),
@@ -79,9 +80,11 @@ async function salirDePartida() {
   clearTimeout(e.temporizador);
   const ctl = e.ctl;
   if (enLinea() && ctl) {
-    const enCurso = ctl.codigo && !ctl.terminado && ctl.sala?.invitado;
+    const activa = ctl.codigo && !ctl.terminado;
+    // Solo se pierde (y se confirma) con el rival jugando; esperando o desplegando se sale sin pérdida.
+    const enCurso = activa && ctl.estado?.fase === "jugando";
     if (enCurso && !confirm("Si sales ahora perderás la partida por abandono. ¿Quieres salir?")) return false;
-    if (enCurso) await ctl.abandonar();
+    if (activa) await ctl.abandonar(); // el rival se entera y la sala queda cerrada
     ctl.cerrar();
   }
   return true;
@@ -660,12 +663,29 @@ function render() {
     || (enLinea() && (!e.ctl || e.ctl.estado?.fase !== "desplegando" || e.conectando));
 
   renderFlotas();
+  renderSalir();
 
   // marcador
   ui.disparos.textContent = jugador.disparos;
   ui.aciertos.textContent = jugador.aciertos;
   ui.precision.textContent = jugador.disparos ? `${Math.round((jugador.aciertos / jugador.disparos) * 100)} %` : "–";
   ui.aFlote.textContent = maquina.barcosAFlote();
+}
+
+// Botón de salir: online mientras haya sala activa; contra el ordenador mientras no haya terminado.
+function renderSalir() {
+  const visible = enLinea()
+    ? !!e.ctl?.codigo && !e.ctl.terminado
+    : !e.partida.esFinal();
+  ui.salir.hidden = !visible;
+  ui.salir.textContent = enLinea() ? "Salir de la sala" : "Abandonar partida";
+}
+
+// Sale de la partida y vuelve al estado inicial (panel de sala en online, partida nueva contra la IA).
+async function salir() {
+  if (!enLinea() && e.jugador.disparos > 0 && !e.partida.esFinal()
+    && !confirm("Se perderá la partida en curso. ¿Quieres abandonarla?")) return;
+  if (await nuevaPartida()) avisar(enLinea() ? "Has salido de la sala. Crea una nueva o únete a otra." : "Has abandonado la partida. Coloca tu flota para empezar otra.");
 }
 
 function piezas(barco, mostrarTocados) {
@@ -793,6 +813,7 @@ function iniciar() {
   ui.batalla.addEventListener("click", empezarBatalla);
   ui.nueva.addEventListener("click", () => nuevaPartida());
   ui.otra.addEventListener("click", () => nuevaPartida());
+  ui.salir.addEventListener("click", salir);
   ui.crearSala.addEventListener("click", crearSala);
   ui.formUnirse.addEventListener("submit", (ev) => {
     ev.preventDefault();

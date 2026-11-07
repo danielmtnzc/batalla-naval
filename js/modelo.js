@@ -185,6 +185,48 @@ export class Usuario {
   }
 }
 
+// ---------------------------------------------------------------- Disparo (dos mitades)
+
+// Lado defensor. No comprueba turno ni repeticiones: eso es cosa de quien llama.
+// `alrededor` son todas las casillas vecinas del barco hundido; el atacante descarta las ya marcadas.
+export function resolverEn(atacado, x, y) {
+  const tablero = atacado.tableroPropio;
+  const contenido = tablero.casillas[x][y].contiene;
+  const estado = atacado.meDisparan(x, y);
+  const res = { estado };
+  if (estado === "agua") {
+    tablero.marcarEstado("agua", x, y);
+  } else {
+    tablero.marcarEstado("tocado", x, y);
+    if (estado === "hundido") {
+      const posiciones = contenido.obtenerPosiciones();
+      res.barco = { nombre: contenido.nombre, tam: contenido.tam, posiciones };
+      res.alrededor = tablero.alrededorDe(posiciones);
+    }
+  }
+  return res;
+}
+
+// Lado atacante.
+export function aplicarResultado(atacante, x, y, res) {
+  const tablero = atacante.tableroRival;
+  atacante.disparos++;
+  if (res.estado === "agua") {
+    atacante.marcarEstado("agua", x, y);
+    return;
+  }
+  atacante.aciertos++;
+  if (res.estado === "hundido") {
+    for (const [px, py] of res.barco.posiciones) atacante.marcarEstado("hundido", px, py);
+    // Los barcos no pueden tocarse: el agua alrededor de un hundido queda descubierta.
+    for (const [ax, ay] of res.alrededor) {
+      if (!tablero.obtenerMarca(ax, ay)) atacante.marcarEstado("agua", ax, ay);
+    }
+  } else {
+    atacante.marcarEstado("tocado", x, y);
+  }
+}
+
 // ---------------------------------------------------------------- Partida
 
 export class Partida {
@@ -260,6 +302,17 @@ export class Partida {
     return this.jugadores.find((j) => j.nick === nick);
   }
 
+  // Lado defensor: aplica el disparo al tablero propio del atacado.
+  // Devuelve { estado, barco?, alrededor? } con lo que necesita el atacante para marcar su tablero.
+  resolverEn(atacado, x, y) {
+    return resolverEn(atacado, x, y);
+  }
+
+  // Lado atacante: marca su tablero de disparos y cuenta disparos y aciertos.
+  aplicarResultado(atacante, x, y, res) {
+    aplicarResultado(atacante, x, y, res);
+  }
+
   // Devuelve { estado, x, y, atacante, barco?, alrededor? } o { error }.
   disparar(nick, x, y) {
     if (!this.esJugando()) return { error: "La partida no está en juego." };
@@ -269,34 +322,12 @@ export class Partida {
     if (atacante.tableroRival.obtenerMarca(x, y)) return { error: "Ya has disparado ahí." };
 
     const atacado = this.obtenerRival(nick);
-    const contenido = atacado.tableroPropio.casillas[x][y].contiene;
-    const estado = atacado.meDisparan(x, y);
-    const resultado = { estado, x, y, atacante: nick };
-    atacante.disparos++;
+    const res = this.resolverEn(atacado, x, y);
+    this.aplicarResultado(atacante, x, y, res);
+    if (res.estado === "agua") this.cambiarTurno(nick); // si es agua, pasa el turno; si aciertas, repites
+    else this.comprobarFin(atacado);
 
-    if (estado === "agua") {
-      atacante.marcarEstado("agua", x, y);
-      atacado.tableroPropio.marcarEstado("agua", x, y);
-      this.cambiarTurno(nick); // si es agua, pasa el turno; si aciertas, repites
-    } else {
-      atacante.aciertos++;
-      atacado.tableroPropio.marcarEstado("tocado", x, y);
-      if (estado === "hundido") {
-        const posiciones = contenido.obtenerPosiciones();
-        for (const [px, py] of posiciones) atacante.marcarEstado("hundido", px, py);
-        // Los barcos no pueden tocarse: el agua alrededor de un hundido queda descubierta.
-        const alrededor = atacante.tableroRival.alrededorDe(posiciones);
-        for (const [ax, ay] of alrededor) {
-          if (!atacante.tableroRival.obtenerMarca(ax, ay)) atacante.marcarEstado("agua", ax, ay);
-        }
-        resultado.barco = { nombre: contenido.nombre, tam: contenido.tam, posiciones };
-        resultado.alrededor = alrededor;
-      } else {
-        atacante.marcarEstado("tocado", x, y);
-      }
-      this.comprobarFin(atacado);
-    }
-
+    const resultado = { ...res, x, y, atacante: nick };
     this.historial.push(resultado);
     return resultado;
   }

@@ -2,6 +2,8 @@
 
 import { Juego, Horizontal, TAM_TABLERO } from "./modelo.js";
 import { Almirante } from "./ia.js";
+import { crearUsuarioLocal, deserializarFlota, normalizarCodigo } from "./protocolo.js";
+import { crearControlador, crearRivalFantasma, almacenSala } from "./online.js";
 
 const LETRAS = "ABCDEFGHIJ";
 const coord = (x, y) => `${LETRAS[x]}${y + 1}`;
@@ -18,7 +20,21 @@ const ui = {
   mensaje: $("#mensaje"),
   bitacora: $("#bitacora"),
   nick: $("#nick"),
+  modo: $("#modo"),
   dificultad: $("#dificultad"),
+  sala: $("#panel-online"),
+  crearSala: $("#crear-sala"),
+  formUnirse: $("#form-unirse"),
+  codigoSala: $("#codigo-sala"),
+  unirse: $("#unirse"),
+  salaCodigo: $("#sala-codigo"),
+  copiarEnlace: $("#copiar-enlace"),
+  salaRival: $("#sala-rival"),
+  salaError: $("#sala-error"),
+  tituloRival: $("#titulo-rival"),
+  chapaPropia: $("#chapa-propia"),
+  etiquetaFlote: $("#etiqueta-flote"),
+  finVerif: $("#fin-verif"),
   nueva: $("#nueva"),
   girar: $("#girar"),
   orientacion: $("#orientacion"),
@@ -44,15 +60,46 @@ function guardar(k, v) {
   try { localStorage.setItem(k, v); } catch { /* sin almacenamiento */ }
 }
 
-let e = null; // estado de la partida en curso
+let e = null; // estado de la partida en curso (e.modo: "ia" | "online")
+const almacen = almacenSala();
+
+const enLinea = () => e.modo === "online";
+const nickActual = () => ui.nick.value.trim() || "Capitán";
+// Nombre con el que se habla del rival en los textos.
+const nombreRival = () => (enLinea() ? e.maquina.nick : "El enemigo");
+// Disparo propio sin respuesta (online) o turno de la IA en marcha.
+const botonEmpezar = () => (enLinea() ? "«¡Listo!»" : "«¡A la batalla!»");
+const ocupado = () => (enLinea() ? !!e.ctl?.esperando : e.ocupado);
 
 // ------------------------------------------------------------ partida
 
-function nuevaPartida() {
-  if (e) clearTimeout(e.temporizador);
-  if (ui.fin.open) ui.fin.close();
+// Abandona la partida en curso; en online pide confirmación si hay un rival jugando.
+async function salirDePartida() {
+  if (!e) return true;
+  clearTimeout(e.temporizador);
+  const ctl = e.ctl;
+  if (enLinea() && ctl) {
+    const enCurso = ctl.codigo && !ctl.terminado && ctl.sala?.invitado;
+    if (enCurso && !confirm("Si sales ahora perderás la partida por abandono. ¿Quieres salir?")) return false;
+    if (enCurso) await ctl.abandonar();
+    ctl.cerrar();
+  }
+  return true;
+}
 
-  const nick = ui.nick.value.trim() || "Capitán";
+// Devuelve false si el usuario cancela al salir de una partida online en curso.
+async function nuevaPartida({ inicio = false } = {}) {
+  if (!(await salirDePartida())) return false;
+  if (ui.fin.open) ui.fin.close();
+  ui.finVerif.hidden = true;
+  mostrarError("");
+  if (ui.modo.value === "online") iniciarOnline(inicio);
+  else iniciarContraIA();
+  return true;
+}
+
+function iniciarContraIA() {
+  const nick = nickActual();
   const nickMaquina = nick === "Almirante IA" ? "Almirante IA II" : "Almirante IA";
   const juego = new Juego();
   juego.agregarUsuario(nick);
@@ -66,6 +113,7 @@ function nuevaPartida() {
   maquina.desplegarAleatorio();
 
   e = {
+    modo: "ia",
     partida,
     jugador,
     maquina,
@@ -83,7 +131,15 @@ function nuevaPartida() {
   render();
 }
 
+function empezarBatallaOnline() {
+  if (!e.ctl || e.ctl.estado?.fase !== "desplegando") return avisar("Espera a que se una tu rival.");
+  if (!e.jugador.todosDesplegados()) return avisar("Coloca todos tus barcos antes de pulsar «¡Listo!».");
+  mostrarError("");
+  e.ctl.marcarListo();
+}
+
 function empezarBatalla() {
+  if (enLinea()) return empezarBatallaOnline();
   if (!e.jugador.todosDesplegados()) return;
   e.maquina.barcosDesplegados();
   e.jugador.barcosDesplegados();
@@ -96,7 +152,8 @@ function empezarBatalla() {
 
 function disparoJugador(x, y) {
   const { partida, jugador } = e;
-  if (!partida.esJugando() || partida.turno !== jugador || e.ocupado) return;
+  if (!partida.esJugando() || partida.turno !== jugador || ocupado()) return;
+  if (enLinea()) return void e.ctl.disparar(x, y); // la respuesta llega por la sala
   const res = jugador.disparar(x, y);
   if (res.error) return avisar(res.error);
   anotar(res, true);
@@ -138,6 +195,268 @@ function terminar() {
   setTimeout(() => ui.fin.showModal(), 450);
 }
 
+// ------------------------------------------------------------ online
+
+// Sustituto de `Partida` en modo online: fase, turno y ganador vienen de la sala remota.
+function crearFachadaOnline(ev) {
+  const quien = (uid) => (!uid || !ev.ctl ? null : uid === ev.ctl.uid ? ev.jugador : ev.maquina);
+  return {
+    get fase() { return ev.ctl ? ev.ctl.fase : "desplegando"; },
+    get turno() { return quien(ev.ctl?.estado?.turno); },
+    get ganador() { return quien(ev.ctl?.estado?.ganador); },
+    get historial() {
+      if (!ev.ctl) return [];
+      return ev.ctl.historial.map((h) => ({
+        atacante: h.propio ? ev.jugador.nick : ev.maquina.nick, x: h.x, y: h.y,
+      }));
+    },
+    esInicial() { return false; },
+    esDesplegando() { return this.fase === "desplegando"; },
+    esJugando() { return this.fase === "jugando"; },
+    esFinal() { return this.fase === "final"; },
+  };
+}
+
+function iniciarOnline(inicio) {
+  const jugador = crearUsuarioLocal(nickActual());
+  e = {
+    modo: "online",
+    partida: null,
+    jugador,
+    maquina: crearRivalFantasma("Rival"),
+    ctl: null,
+    conectando: false,
+    visto: null,
+    orientacion: new Horizontal(),
+    seleccionado: Object.keys(jugador.flota)[0],
+    hover: null,
+    ocupado: false,
+    temporizador: null,
+    ultimo: null,
+  };
+  e.partida = crearFachadaOnline(e);
+  ui.bitacora.innerHTML = "";
+  ui.codigoSala.value = "";
+
+  const enlace = normalizarCodigo(new URLSearchParams(location.search).get("sala"));
+  const guardado = almacen.leer();
+  avisar("Crea una sala y pásale el código a tu rival, o únete a la suya. Mientras tanto, puedes ir colocando tu flota.");
+  render();
+  renderSala();
+  // Recarga a mitad de partida: se vuelve a la sala guardada (si el enlace es de otra sala, manda el enlace).
+  if (inicio && guardado && (!enlace || enlace === guardado)) {
+    avisar("Volviendo a tu partida online…");
+    conectarOnline(async (ctl) => {
+      const r = await ctl.retomar(guardado);
+      if (!r.error) avisar(`Has vuelto a la sala ${guardado}.`);
+      return r;
+    });
+  } else if (inicio && enlace) {
+    ui.codigoSala.value = enlace;
+    avisar(`Te han invitado a la sala ${enlace}. Revisa tu nombre y pulsa «Unirse».`);
+  }
+}
+
+async function crearRed() {
+  if (globalThis.crearRedOnline) return globalThis.crearRedOnline(); // sustituto para pruebas
+  let modulo;
+  try {
+    modulo = await import("./red-firebase.js");
+  } catch {
+    throw new Error("No se ha podido cargar el modo online. Comprueba tu conexión e inténtalo de nuevo.");
+  }
+  return modulo.crearRedFirebase();
+}
+
+// Crea el controlador la primera vez (carga Firebase solo ahora) y ejecuta `accion(ctl)`.
+async function conectarOnline(accion) {
+  const actual = e;
+  if (actual.conectando || actual.ctl?.codigo) return;
+  actual.conectando = true;
+  mostrarError("");
+  renderSala();
+  let ctl = null;
+  try {
+    ctl = crearControladorOnline(actual, await crearRed());
+    if (actual !== e) return ctl.cerrar({ olvidar: false });
+    actual.ctl = ctl;
+    const r = await accion(ctl);
+    if (r?.error && !ctl.codigo) {
+      ctl.cerrar({ olvidar: false });
+      if (actual.ctl === ctl) actual.ctl = null;
+    }
+  } catch (err) {
+    ctl?.cerrar({ olvidar: false });
+    if (actual.ctl === ctl) actual.ctl = null;
+    if (actual === e) mostrarError(String(err?.message ?? err));
+  } finally {
+    actual.conectando = false;
+    if (actual === e) { render(); renderSala(); }
+  }
+}
+
+function crearControladorOnline(actual, red) {
+  actual.jugador.nick = nickActual();
+  const activo = () => e === actual;
+  return crearControlador({
+    red,
+    nick: actual.jugador.nick,
+    usuario: actual.jugador,
+    almacen,
+    alCambiar: () => { if (activo()) { render(); renderSala(); avisarTransiciones(); } },
+    alDisparo: (entrada, propio) => { if (activo()) anotar(entrada, propio); },
+    alFin: (resultado) => { if (activo()) terminarOnline(resultado); },
+    alVerificar: (v) => { if (activo()) mostrarVerificacion(v); },
+    alError: (texto) => { if (activo()) mostrarError(texto); },
+  });
+}
+
+function crearSala() {
+  if (e.conectando || e.ctl?.codigo) return;
+  conectarOnline(async (ctl) => {
+    const r = await ctl.crearSala();
+    if (!r.error) avisar(`Sala ${r.codigo} creada. Pásale el código o el enlace a tu rival; mientras tanto, coloca tu flota.`);
+    return r;
+  });
+}
+
+function unirseASala() {
+  if (e.conectando || e.ctl?.codigo) return;
+  if (!normalizarCodigo(ui.codigoSala.value)) {
+    return mostrarError("El código de sala son 5 letras o cifras (sin I, L, O, 0 ni 1).");
+  }
+  conectarOnline(async (ctl) => {
+    const r = await ctl.unirse(ui.codigoSala.value);
+    if (!r.error) avisar(`Te has unido a la sala ${r.codigo}. Coloca tu flota y pulsa «¡Listo!».`);
+    return r;
+  });
+}
+
+function enlaceDeSala() {
+  const url = new URL(location.href);
+  url.searchParams.set("sala", e.ctl.codigo);
+  url.hash = "";
+  return url.toString();
+}
+
+async function copiarEnlace() {
+  if (!e.ctl?.codigo) return;
+  const enlace = enlaceDeSala();
+  try {
+    await navigator.clipboard.writeText(enlace);
+    ui.copiarEnlace.textContent = "¡Copiado!";
+    setTimeout(() => { ui.copiarEnlace.textContent = "Copiar enlace"; }, 1800);
+  } catch {
+    prompt("Copia el enlace y pásaselo a tu rival:", enlace);
+  }
+}
+
+function mostrarError(texto) {
+  ui.salaError.textContent = texto;
+  ui.salaError.hidden = !texto;
+}
+
+// Anuncia en el mensaje los cambios de fase y de estado del rival.
+function avisarTransiciones() {
+  const ctl = e.ctl;
+  if (!ctl?.estado || ctl.terminado) return;
+  const rival = ctl.rival;
+  const ahora = { fase: ctl.fase, rival: rival?.estado, sala: ctl.estado.fase };
+  const antes = e.visto;
+  e.visto = ahora;
+  if (!antes) return;
+  const nombre = e.maquina.nick;
+  if (rival?.estado === "desconectado" && antes.rival !== "desconectado") {
+    avisar(`${nombre} se ha desconectado. La partida seguirá cuando vuelva.`);
+  } else if (antes.rival === "desconectado" && rival?.estado !== "desconectado") {
+    avisar(`${nombre} ha vuelto.`);
+  } else if (antes.sala === "esperando" && ahora.sala === "desplegando") {
+    avisar(`${nombre} se ha unido. Coloca tu flota y pulsa «¡Listo!».`);
+  } else if (antes.fase !== "listo" && ahora.fase === "listo") {
+    avisar(`Flota lista. Esperando a que ${nombre} termine de colocar la suya.`);
+  } else if (antes.fase !== "jugando" && ahora.fase === "jugando") {
+    avisar(ctl.estado.turno === ctl.uid
+      ? `¡Empieza la batalla! Dispara en las aguas de ${nombre}.`
+      : `¡Empieza la batalla! Dispara primero ${nombre}.`);
+    anotarTexto("Comienza la partida.", "mio");
+  }
+}
+
+function textoRival(r) {
+  if (!r) return "";
+  const n = r.nick;
+  return {
+    esperando: "Esperando a que se una tu rival. Pásale el código o el enlace.",
+    colocando: `${n} está colocando su flota.`,
+    listo: `${n} está listo.`,
+    jugando: `${n} está en la partida.`,
+    desconectado: `${n} se ha desconectado. Esperando a que vuelva…`,
+    fin: `${n} ha terminado la partida.`,
+  }[r.estado] ?? "";
+}
+
+function renderSala() {
+  if (!enLinea()) return;
+  const ctl = e.ctl;
+  ui.sala.dataset.estado = ctl?.codigo ? "activa" : "inicio";
+  ui.salaCodigo.textContent = ctl?.codigo ?? "";
+  const r = ctl?.rival;
+  ui.salaRival.dataset.estado = r?.estado ?? "";
+  ui.salaRival.textContent = textoRival(r);
+  ui.crearSala.disabled = ui.unirse.disabled = ui.codigoSala.disabled = e.conectando;
+}
+
+// Mantiene al rival fantasma al día: nick y barcos hundidos según el historial.
+function sincronizarRival() {
+  const r = e.ctl?.rival;
+  const nick = r?.nick ?? "Rival";
+  e.maquina.nick = nick === e.jugador.nick ? `${nick} (rival)` : nick;
+  for (const nombre of e.ctl?.hundidosRival ?? []) {
+    const barco = e.maquina.flota[nombre];
+    if (barco) barco.estado = "hundido";
+  }
+}
+
+function terminarOnline({ gano, abandono }) {
+  sincronizarRival();
+  const rival = e.maquina.nick;
+  const { disparos, aciertos } = e.jugador;
+  const precision = disparos ? Math.round((aciertos / disparos) * 100) : 0;
+  if (abandono) {
+    ui.finEtiqueta.textContent = gano ? "El rival se ha retirado" : "Has abandonado";
+    ui.finTexto.textContent = gano ? `${rival} ha abandonado la partida.` : `Has abandonado: la victoria es para ${rival}.`;
+  } else {
+    ui.finEtiqueta.textContent = gano ? "Flota rival hundida" : "Tu flota ha sido hundida";
+    ui.finTexto.textContent = gano
+      ? `Lo has conseguido en ${disparos} disparos, con un ${precision} % de acierto.`
+      : `A ${rival} le quedaban ${e.maquina.barcosAFlote()} barcos a flote. Tu precisión: ${precision} %.`;
+  }
+  ui.finTitulo.textContent = gano ? "¡Victoria!" : "Derrota";
+  ui.finVerif.className = "fin-verif";
+  ui.finVerif.textContent = "Comprobando el resultado con la flota del rival…";
+  ui.finVerif.hidden = false;
+  const msg = abandono
+    ? (gano ? `Victoria por abandono: ${rival} se ha retirado.` : "Derrota por abandono: te has retirado.")
+    : (gano ? `¡Victoria! Has hundido toda la flota de ${rival}.` : `Derrota. ${rival} ha hundido toda tu flota.`);
+  avisar(msg);
+  anotarTexto(msg, gano ? "exito" : "peligro");
+  render();
+  renderSala();
+  setTimeout(() => { if (!ui.fin.open) ui.fin.showModal(); }, 450);
+}
+
+function mostrarVerificacion(v) {
+  if (v.vacia) { ui.finVerif.hidden = true; return; }
+  const texto = v.ok
+    ? "Resultado verificado: las respuestas de tu rival cuadran con la flota que ha revelado."
+    : `Resultado no verificable: ${v.motivo}.`;
+  ui.finVerif.className = `fin-verif ${v.ok ? "ok" : "mal"}`;
+  ui.finVerif.textContent = texto;
+  ui.finVerif.hidden = false;
+  anotarTexto(texto, v.ok ? "" : "peligro");
+  render(); // con la flota revelada se dibujan los barcos que quedaron sin hundir
+}
+
 // ------------------------------------------------------------ colocación
 
 function clicPropio(x, y) {
@@ -160,7 +479,7 @@ function clicPropio(x, y) {
     e.seleccionado = siguienteSinColocar();
     avisar(e.seleccionado
       ? `${capital(nombre)} colocado. Ahora el ${e.seleccionado}.`
-      : "Flota lista. Pulsa «¡A la batalla!» cuando quieras.");
+      : `Flota lista. Pulsa ${botonEmpezar()} cuando quieras.`);
   } else {
     avisar(`El ${nombre} no cabe ahí: se sale del tablero o toca otro barco.`);
   }
@@ -200,9 +519,10 @@ function anotar(res, esJugador) {
     else if (res.estado === "tocado") texto = `Disparas a ${c}: ¡tocado! Vuelves a disparar.`;
     else { texto = `Disparas a ${c}: ¡tocado y hundido! Cae su ${res.barco.nombre}.`; clase = "exito"; }
   } else {
-    if (res.estado === "agua") texto = `El enemigo dispara a ${c}: agua. Tu turno.`;
-    else if (res.estado === "tocado") texto = `El enemigo dispara a ${c}: te ha tocado.`;
-    else { texto = `El enemigo dispara a ${c}: ha hundido tu ${res.barco.nombre}.`; clase = "peligro"; }
+    const quien = nombreRival();
+    if (res.estado === "agua") texto = `${quien} dispara a ${c}: agua. Tu turno.`;
+    else if (res.estado === "tocado") texto = `${quien} dispara a ${c}: te ha tocado.`;
+    else { texto = `${quien} dispara a ${c}: ha hundido tu ${res.barco.nombre}.`; clase = "peligro"; }
   }
   anotarTexto(texto, clase);
   avisar(texto);
@@ -253,10 +573,24 @@ function clasesBarco(barco, x, y) {
   return cls;
 }
 
+function aplicarModo() {
+  const online = enLinea();
+  const rival = e.maquina.nick;
+  document.body.dataset.modo = e.modo;
+  ui.batalla.textContent = online ? "¡Listo!" : "¡A la batalla!";
+  ui.tituloRival.textContent = !online ? "Aguas enemigas" : rival === "Rival" ? "Aguas del rival" : `Aguas de ${rival}`;
+  ui.chapaPropia.textContent = !online ? "Dispara el enemigo" : `Dispara ${rival === "Rival" ? "el rival" : rival}`;
+  ui.etiquetaFlote.textContent = online ? "Barcos rivales a flote" : "Enemigos a flote";
+}
+
 function render() {
+  if (enLinea()) sincronizarRival();
+  aplicarModo();
   const { partida, jugador, maquina } = e;
   document.body.dataset.fase = partida.fase;
-  const miTurno = partida.esJugando() && partida.turno === jugador && !e.ocupado;
+  const miTurno = partida.esJugando() && partida.turno === jugador && !ocupado();
+  // flota rival que se descubre al final: la de la IA o la que el rival ha revelado
+  const reveladoRival = enLinea() ? e.ctl?.rivalRevelado : maquina;
 
   // previsualización de colocación
   let previo = null;
@@ -302,7 +636,7 @@ function render() {
         if (!partida.historial.some((r) => r.atacante === jugador.nick && r.x === x && r.y === y)) cls.push("auto");
       } else if (marca) {
         cls.push(marca);
-      } else if (partida.esFinal() && !maquina.tableroPropio.casillas[x][y].contiene.esAgua()) {
+      } else if (partida.esFinal() && reveladoRival && !reveladoRival.tableroPropio.casillas[x][y].contiene.esAgua()) {
         cls.push("revelado");
       }
       if (!marca && miTurno) cls.push("apuntable");
@@ -320,7 +654,8 @@ function render() {
 
   // panel de colocación
   ui.orientacion.textContent = e.orientacion.nombre;
-  ui.batalla.disabled = !jugador.todosDesplegados();
+  ui.batalla.disabled = !jugador.todosDesplegados()
+    || (enLinea() && (!e.ctl || e.ctl.estado?.fase !== "desplegando" || e.conectando));
 
   renderFlotas();
 
@@ -406,6 +741,9 @@ function renderFlotas() {
 
 function iniciar() {
   ui.nick.value = leer("hlf-nick", "Capitán");
+  const hayEnlace = !!new URLSearchParams(location.search).get("sala");
+  const modo = hayEnlace ? "online" : leer("hlf-modo", "ia");
+  ui.modo.value = modo === "online" ? "online" : "ia";
   const dif = leer("hlf-dificultad", "normal");
   ui.dificultad.value = ["facil", "normal", "dificil"].includes(dif) ? dif : "normal";
 
@@ -437,26 +775,41 @@ function iniciar() {
 
   ui.girar.addEventListener("click", girar);
   ui.aleatorio.addEventListener("click", () => {
+    if (!e.partida.esDesplegando()) return;
     e.jugador.desplegarAleatorio();
     e.seleccionado = null;
-    avisar("Flota colocada al azar. Puedes moverla o pulsar «¡A la batalla!».");
+    avisar(`Flota colocada al azar. Puedes moverla o pulsar ${botonEmpezar()}.`);
     render();
   });
   ui.limpiar.addEventListener("click", () => {
+    if (!e.partida.esDesplegando()) return;
     e.jugador.quitarTodos();
     e.seleccionado = siguienteSinColocar();
     avisar("Tablero despejado. Vuelve a colocar tu flota.");
     render();
   });
   ui.batalla.addEventListener("click", empezarBatalla);
-  ui.nueva.addEventListener("click", nuevaPartida);
-  ui.otra.addEventListener("click", nuevaPartida);
+  ui.nueva.addEventListener("click", () => nuevaPartida());
+  ui.otra.addEventListener("click", () => nuevaPartida());
+  ui.crearSala.addEventListener("click", crearSala);
+  ui.formUnirse.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    unirseASala();
+  });
+  ui.copiarEnlace.addEventListener("click", copiarEnlace);
+  ui.modo.addEventListener("change", async () => {
+    const previo = e.modo;
+    if (await nuevaPartida()) guardar("hlf-modo", ui.modo.value);
+    else ui.modo.value = previo;
+  });
+  window.addEventListener("online", () => e.ctl?.reintentar());
   ui.ver.addEventListener("click", () => ui.fin.close());
 
   ui.nick.addEventListener("change", () => guardar("hlf-nick", ui.nick.value.trim()));
   ui.dificultad.addEventListener("change", () => {
     guardar("hlf-dificultad", ui.dificultad.value);
-    if (e && !e.partida.esFinal() && e.jugador.disparos === 0) {
+    if (!e || !e.ia) return;
+    if (!e.partida.esFinal() && e.jugador.disparos === 0) {
       e.ia = new Almirante(TAM_TABLERO, ui.dificultad.value);
     } else {
       avisar("La nueva dificultad se aplicará en la próxima partida.");
@@ -468,7 +821,7 @@ function iniciar() {
     if (ev.key === "r" || ev.key === "R") girar();
   });
 
-  nuevaPartida();
+  nuevaPartida({ inicio: true });
 }
 
 iniciar();

@@ -23,6 +23,8 @@
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 body {
@@ -174,7 +176,8 @@ body[data-fase="desplegando"] .panel-despliegue { display: block; }
   transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
 .zona.activa { border-color: var(--laton); box-shadow: 0 0 0 1px var(--laton), 0 10px 30px rgba(0, 0, 0, 0.35); }
-body[data-fase="desplegando"] #zona-rival { opacity: 0.45; }
+body[data-fase="desplegando"] #zona-rival,
+body[data-fase="listo"] #zona-rival { opacity: 0.45; }
 
 .zona-cab {
   display: flex;
@@ -203,6 +206,74 @@ body[data-fase="desplegando"] #zona-rival { opacity: 0.45; }
   text-transform: uppercase;
 }
 .zona.activa .turno-chapa { visibility: visible; }
+
+/* ------------------------------------------------------------ modo y sala online */
+
+body[data-modo="online"] .campo-dificultad { display: none; }
+
+.sala { display: none; margin-bottom: 18px; }
+body[data-modo="online"] .sala {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--rejilla);
+  border-radius: 10px;
+  background: rgba(7, 20, 32, 0.55);
+}
+.sala[data-estado="inicio"] .sala-activa,
+.sala[data-estado="activa"] .sala-inicio { display: none; }
+
+.sala-inicio { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.sala-o { color: var(--tenue); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+.sala-unirse { display: flex; gap: 8px; margin: 0; }
+.sala-unirse input {
+  width: 9ch;
+  min-width: 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.sala-activa { display: grid; gap: 8px; }
+.sala-codigo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.sala-etiqueta { color: var(--tenue); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.sala-codigo-texto {
+  font-family: var(--fuente-titulo);
+  font-weight: 900;
+  font-size: clamp(40px, 11vw, 56px);
+  line-height: 1;
+  letter-spacing: 0.18em;
+  color: var(--laton);
+  user-select: all;
+}
+
+.sala-rival { margin: 0; color: var(--tenue); font-size: 14px; }
+.sala-rival::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--acero);
+  vertical-align: baseline;
+}
+.sala-rival[data-estado="esperando"]::before,
+.sala-rival[data-estado="colocando"]::before { background: var(--laton); animation: latido 1.4s ease-in-out infinite; }
+.sala-rival[data-estado="listo"]::before,
+.sala-rival[data-estado="jugando"]::before { background: #6fcf8e; }
+.sala-rival[data-estado="desconectado"] { color: #ff9a80; }
+.sala-rival[data-estado="desconectado"]::before { background: var(--tocado); animation: latido 0.8s ease-in-out infinite; }
+@keyframes latido { 50% { opacity: 0.25; } }
+
+.sala-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--tocado);
+  background: rgba(255, 91, 53, 0.12);
+  color: #ffb4a0;
+  font-size: 14px;
+}
 
 /* ------------------------------------------------------------ tablero */
 
@@ -398,6 +469,9 @@ button.barco-fila:hover { background: var(--mar-800); }
   text-transform: uppercase;
 }
 .fin p { margin: 0 0 20px; color: var(--tenue); }
+.fin p.fin-verif { margin: -8px 0 20px; font-size: 13px; }
+.fin-verif.ok { color: #6fcf8e; }
+.fin-verif.mal { color: #ffb4a0; }
 .fin .acciones { justify-content: center; }
 
 .creditos {
@@ -415,15 +489,22 @@ button.barco-fila:hover { background: var(--mar-800); }
   .tableros, .pie-juego { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .cabecera { padding-top: 20px; }
   .ajustes { width: 100%; }
-  .ajustes .campo:first-child { flex: 1; }
+  .ajustes .campo:first-child { flex: 1 1 100%; }
   .ajustes input { width: 100%; }
   .zona { padding: 10px; }
+  .ajustes .campo { flex: 1 1 120px; }
+  .ajustes select { width: 100%; }
+  body[data-modo="online"] .sala { padding: 10px; }
+  .sala-inicio .boton-principal { flex: 1 1 100%; }
+  .sala-o { display: none; }
+  .sala-unirse { flex: 1 1 100%; }
+  .sala-unirse input { flex: 1; width: auto; }
   .etiqueta { font-size: 10px; }
   /* en móvil, durante la batalla, el tablero enemigo va primero */
   body[data-fase="jugando"] #zona-rival { order: -1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .casilla.nuevo { animation: none; }
+  .casilla.nuevo, .sala-rival::before { animation: none !important; }
   * { transition: none !important; }
 }

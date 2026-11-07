@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Batalla naval</title>
-  <meta name="description" content="El clásico juego de barcos: coloca tu flota y hunde la del ordenador. Tocado y hundido.">
+  <meta name="description" content="El clásico juego de barcos: coloca tu flota y hunde la del ordenador o juega online contra un amigo. Tocado y hundido.">
   <meta name="theme-color" content="#0a1a26">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a1a26'/%3E%3Cpath d='M5 19h22l-3 5H8z' fill='%23d9b45a'/%3E%3Crect x='14' y='8' width='2' height='11' fill='%23e6edf1'/%3E%3Cpath d='M16 9l7 7h-7z' fill='%23e6edf1'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="css/estilos.css">
   <script type="module" src="js/app.js"></script>
 </head>
-<body data-fase="desplegando">
+<body data-modo="ia" data-fase="desplegando">
   <header class="cabecera">
     <div class="marca">
       <h1>Batalla naval</h1>
@@ -25,6 +25,13 @@
         <input id="nick" type="text" maxlength="16" autocomplete="off" spellcheck="false">
       </label>
       <label class="campo">
+        <span>Modo</span>
+        <select id="modo">
+          <option value="ia">Contra el ordenador</option>
+          <option value="online">Online</option>
+        </select>
+      </label>
+      <label class="campo campo-dificultad">
         <span>Rival</span>
         <select id="dificultad">
           <option value="facil">Fácil</option>
@@ -38,6 +45,26 @@
 
   <main class="principal">
     <p id="mensaje" class="mensaje" role="status" aria-live="polite"></p>
+
+    <section id="panel-online" class="sala" data-estado="inicio" aria-label="Sala online">
+      <div class="sala-inicio">
+        <button id="crear-sala" class="boton boton-principal" type="button">Crear sala</button>
+        <span class="sala-o">o</span>
+        <form id="form-unirse" class="sala-unirse">
+          <input id="codigo-sala" type="text" maxlength="5" placeholder="CÓDIGO" aria-label="Código de sala" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <button id="unirse" class="boton" type="submit">Unirse</button>
+        </form>
+      </div>
+      <div class="sala-activa">
+        <div class="sala-codigo">
+          <span class="sala-etiqueta">Código de sala</span>
+          <strong id="sala-codigo" class="sala-codigo-texto"></strong>
+          <button id="copiar-enlace" class="boton" type="button">Copiar enlace</button>
+        </div>
+        <p id="sala-rival" class="sala-rival" role="status"></p>
+      </div>
+      <p id="sala-error" class="sala-error" role="alert" hidden></p>
+    </section>
 
     <section id="panel-despliegue" class="panel-despliegue" aria-label="Colocación de la flota">
       <p class="ayuda">Elige un barco y pulsa en tu tablero para colocarlo. Pulsa un barco ya colocado para moverlo. Los barcos no pueden tocarse.</p>
@@ -53,7 +80,7 @@
       <div class="zona" id="zona-propia">
         <div class="zona-cab">
           <h2>Tu flota</h2>
-          <span class="turno-chapa">Dispara el enemigo</span>
+          <span id="chapa-propia" class="turno-chapa">Dispara el enemigo</span>
         </div>
         <div class="tablero" id="tablero-propio" aria-label="Tu tablero"></div>
         <ul class="flota" id="flota-propia"></ul>
@@ -61,7 +88,7 @@
 
       <div class="zona" id="zona-rival">
         <div class="zona-cab">
-          <h2>Aguas enemigas</h2>
+          <h2 id="titulo-rival">Aguas enemigas</h2>
           <span class="turno-chapa">Tu turno</span>
         </div>
         <div class="tablero" id="tablero-rival" aria-label="Tablero enemigo"></div>
@@ -74,7 +101,7 @@
         <div><dt>Disparos</dt><dd id="m-disparos">0</dd></div>
         <div><dt>Aciertos</dt><dd id="m-aciertos">0</dd></div>
         <div><dt>Precisión</dt><dd id="m-precision">–</dd></div>
-        <div><dt>Enemigos a flote</dt><dd id="m-flote">5</dd></div>
+        <div><dt id="etiqueta-flote">Enemigos a flote</dt><dd id="m-flote">5</dd></div>
       </dl>
       <div class="bitacora">
         <h2>Bitácora</h2>
@@ -87,6 +114,7 @@
     <p class="fin-etiqueta" id="fin-etiqueta"></p>
     <h2 id="fin-titulo"></h2>
     <p id="fin-texto"></p>
+    <p id="fin-verif" class="fin-verif" hidden></p>
     <div class="acciones">
       <button id="ver" class="boton" type="button">Ver tableros</button>
       <button id="otra" class="boton boton-principal" type="button">Jugar otra vez</button>
